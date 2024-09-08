@@ -1,6 +1,7 @@
 from prefect import task
 from models.House import House
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import null
 
 
 @task
@@ -30,26 +31,41 @@ def create_object(contents):
                                     {'data-testid': fields['link']})['href']
         else:
             link = div.find('a', {'data-testid': fields['link']})['href']
-        if (len(div.find('ul',
-                         {'data-test': fields['tags']}).find_all('li')) > 3):
+
+        ul = div.find('ul', {'data-test': fields['tags']}).find_all('li')
+        if (len(ul) > 2):
             size = div.find('ul',
                             {'data-test': fields['tags']}).find_all(
                                 'li')[2].get_text()
+        if (len(ul) > 3):
             ground = div.find('ul',
                               {'data-test': fields['tags']}).find_all(
                                   'li')[3].get_text()
-            
+
+        if size != '':
+            size = size.replace('m²', ' ').replace(' ', '')
+            size = int(size) if size.isnumeric() else null()
+        else:
+            size = null()
+
+        if ground != '':
+            ground = ground.replace(
+                'Terrain', '').replace('m²', ' ').replace(' ', '')
+            ground = int(ground) if ground.isnumeric() else null()
+        else:
+            ground = null()
+
         price = div.find('div', {'data-test': fields['price']}).get_text()
         price = int(price.replace('€', '').replace(' ', ''))
         houses.append(House(
             price=price,
             title=div.find('div', {'data-test': fields['title']}).get_text(),
-            photo=photo,
+            photo=photo if photo != '' else null(),
             address=div.find('div',
                              {'data-test': fields['address']}).get_text(),
             size=size,
             ground=ground,
-            link=link,
+            link=link if link != '' else null(),
         ))
 
     return houses
